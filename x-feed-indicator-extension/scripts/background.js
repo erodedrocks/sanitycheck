@@ -39,7 +39,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ error: 'Missing Anthropic API key. Set it in Options.' });
           return;
         }
-        const system = (classificationPrompt || defaultPrompt());
+        let system = (classificationPrompt || defaultPrompt());
+        // Migration guard: if an older single-digit prompt is stored, replace with new default
+        if (/Output\s+ONLY\s+a\s+single\s+digit/i.test(system) && !/two\s+numbers/i.test(system)) {
+          system = defaultPrompt();
+        }
         const resp = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -54,7 +58,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             temperature: 0,
             system,
             messages: [
-              { role: 'user', content: `Tweet:\n"${text}"\nLikes:${fullData.likeCount}\nReposts:${fullData.retweetCount}\nComments:${fullData.commentCount}\nLabel:` },
+              { role: 'user', content: `Sender:\n"${fullData.displayName}"Tweet:\n"${text}"\nLikes:${fullData.likeCount}\nReposts:${fullData.retweetCount}\nComments:${fullData.commentCount}\nLabel:` },
             ],
           }),
         });
@@ -66,12 +70,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const data = await resp.json();
         const content = Array.isArray(data?.content) ? data.content : [];
         const firstText = content.find((c) => c?.type === 'text')?.text || '';
-        const rating = parseRating(firstText);
-        if (!rating) {
-          sendResponse({ error: 'Could not parse rating', raw: data, text: firstText });
+        const parsed = parseComposite(firstText);
+        if (!parsed) {
+          sendResponse({ error: 'Could not parse rating/ideology', raw: data, text: firstText });
           return;
         }
-        sendResponse({ rating, raw: data });
+        sendResponse({ rating: parsed.rating, ideology: parsed.ideology, raw: data });
       } catch (e) {
         sendResponse({ error: e?.message || String(e) });
       }
@@ -80,46 +84,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-function parseRating(s) {
+function parseComposite(s) {
   if (!s) return null;
-  const m = String(s).match(/\b([1-5])\b/);
+  const str = String(s).trim();
+  // Expect formats like: "3, -1" or "2,0" (no extra text)
+  const m = str.match(/\b([1-5])\b\s*,\s*([+-]?\d)\b/);
   if (!m) return null;
-  return parseInt(m[1], 10);
+  const rating = parseInt(m[1], 10);
+  const ideology = parseInt(m[2], 10);
+  if (!(rating >= 1 && rating <= 5)) return null;
+  if (!(ideology >= -2 && ideology <= 2)) return null;
+  return { rating, ideology };
 }
 
 function defaultPrompt() {
   return `You are a strict classifier.
-Rate how inflammatory the following tweet is on a scale of 1-5:
+Rate the tweet on two dimensions and output both as numbers:
 
-Definition:
+Dimension A (Inflammatory, 1-5):
 - 1: Not inflammatory. Neutral or polite.
 - 2: Slightly inflammatory. Minor negativity or sarcasm.
 - 3: Moderately inflammatory. Clear negativity, dismissiveness, or provocation.
 - 4: Very inflammatory. Personal attacks, insults, or aggressive tone.
 - 5: Highly inflammatory. Harassment, hateful or severe attacks.
 
+Dimension B (Political Ideology, -2 to 2):
+- -2: Strongly left/liberal/progressive.
+- -1: Mildly left-leaning.
+- 0: Neutral/non-political/unclear.
+- 1: Mildly right-leaning.
+- 2: Strongly right/conservative.
+
 Rules:
-- Output ONLY a single digit. Either 1,2,3,4, or 5.
-- No extra words, punctuation, or explanation.
+- Output ONLY two numbers separated by a comma: "A,B".
+- A = 1 to 5 (inflammatory). B = -2 to 2 (ideology). No extra words.
+- Do not include labels, punctuation (other than the comma), or explanations.
 
-Examples:
-Tweet: "I disagree with this policy but let's discuss."
-Likes: 9432
-Reposts: 96
-Comments: 210
-Label: 2
-
-Tweet: "You're clueless and your take is garbage."
-Likes: 1250
-Reposts: 975
-Comments: 2041
-Label: 4
-
-Tweet: "We should fire anyone who thinks this."
-Likes: 73
-Reposts: 67
-Comments: 92
-Label: 3
-
-Now classify the tweet. REMEMBER: Output ONLY a single digit. Either 1,2,3,4, or 5.`;
+Now classify the tweet. REMEMBER: Output ONLY two numbers as "A,B" with no extra text.`;
 }

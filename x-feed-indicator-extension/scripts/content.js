@@ -4,6 +4,7 @@
 (function () {
   const PROCESSED_ATTR = "data-xfi-processed"; // indicator injected
   const RATING_ATTR = "data-xfi-rating";      // 1-5
+  const IDEOLOGY_ATTR = "data-xfi-ideology";  // -2..2
   const STATE_ATTR = "data-xfi-state";        // pending|done|error
   const MAX_CONCURRENCY = 2;
   const MAX_CACHE_SIZE = 30;
@@ -149,24 +150,34 @@
   }
 
   function ensureIndicator(article, data) {
-    // Attach a single indicator per article
-    if (article.querySelector('.xfi-indicator')) return;
-
     // Prefer adding near the username block to avoid layout shifts
     let anchor = article.querySelector('div[data-testid="User-Name"]');
 
-    const indicator = document.createElement('span');
-    indicator.className = 'xfi-indicator';
-    // Initial neutral content; pending state is applied when we enqueue
-    const wordCount = (data?.text ? data.text.trim().split(/\s+/).filter(Boolean).length : 0);
-    indicator.textContent = `IMF: ...`;
+    // Rating indicator (LVL)
+    if (!article.querySelector('.xfi-indicator')) {
+      const indicator = document.createElement('span');
+      indicator.className = 'xfi-indicator pending';
+      indicator.textContent = `...`;
+      if (anchor) {
+        anchor.appendChild(indicator);
+      } else {
+        // Fallback: attach to the article; keep it subtle
+        article.appendChild(indicator);
+        article.classList.add('xfi-article-fallback');
+      }
+    }
 
-    if (anchor) {
-      anchor.appendChild(indicator);
-    } else {
-      // Fallback: attach to the article; keep it subtle
-      article.appendChild(indicator);
-      article.classList.add('xfi-article-fallback');
+    // Ideology indicator (IDEO)
+    if (!article.querySelector('.xfi-ideology')) {
+      const ideo = document.createElement('span');
+      ideo.className = 'xfi-ideology pending';
+      ideo.textContent = `...`;
+      if (anchor) {
+        anchor.appendChild(ideo);
+      } else {
+        article.appendChild(ideo);
+        article.classList.add('xfi-article-fallback');
+      }
     }
 
     article.setAttribute(PROCESSED_ATTR, "true");
@@ -180,7 +191,15 @@
     
     // Skip if already processed using tweet ID
     if (data.id && processedTweets.has(data.id)) {
-      enqueue(() => setIndicatorLevel(article, processedTweets.get(data.id), 0));
+      const cached = processedTweets.get(data.id);
+      enqueue(() => {
+        if (typeof cached === 'number') {
+          setIndicatorLevel(article, cached, 0);
+        } else if (cached && typeof cached === 'object') {
+          setIndicatorLevel(article, cached.level, 0);
+          setIdeologyIndicator(article, cached.ideology);
+        }
+      });
     };
     
     // Enqueue classification only when text is available and not already done/pending
@@ -190,6 +209,8 @@
       article.setAttribute(STATE_ATTR, 'pending');
       const ind = article.querySelector('.xfi-indicator');
       if (ind) ind.classList.add('pending');
+      const ideo = article.querySelector('.xfi-ideology');
+      if (ideo) ideo.classList.add('pending');
       enqueue(() => classifyArticle(article, data));
     }
   }
@@ -260,12 +281,12 @@
     ind.classList.remove('pending', 'error', 'level-1', 'level-2', 'level-3', 'level-4', 'level-5');
     if (typeof level === 'number' && level >= 1 && level <= 5) {
       ind.classList.add(`level-${level}`);
-      ind.textContent = `INF: ${level}`;
+      ind.textContent = `LVL ${level}`;
       article.setAttribute('data-xfi-rating', String(level));
       article.setAttribute('data-xfi-state', 'done');
     } else {
       ind.classList.add('error');
-      ind.textContent = `INF: ?`;
+      ind.textContent = `LVL ?`;
       article.setAttribute('data-xfi-state', 'error');
     }
     
@@ -277,6 +298,21 @@
     }
   }
 
+  function setIdeologyIndicator(article, ideology) {
+    const el = article.querySelector('.xfi-ideology');
+    if (!el) return;
+    el.classList.remove('pending', 'error', 'ideology--2', 'ideology--1', 'ideology-0', 'ideology-1', 'ideology-2');
+    if (typeof ideology === 'number' && ideology >= -2 && ideology <= 2) {
+      const cls = `ideology-${ideology}`; // e.g., ideology--1, ideology-0, ideology-2
+      el.classList.add(cls);
+      el.textContent = `IDEO ${ideology}`;
+      article.setAttribute(IDEOLOGY_ATTR, String(ideology));
+    } else {
+      el.classList.add('error');
+      el.textContent = `IDEO ?`;
+    }
+  }
+
   async function classifyArticle(article, data) {
     if (!data?.text || data?.text == "") return;
     if (article.getAttribute('data-xfi-state') === 'done') return;
@@ -284,8 +320,10 @@
     try {
       // Avoid duplicate work: if rating already present, just paint
       const existing = parseInt(article.getAttribute('data-xfi-rating') || '', 10);
-      if (existing >= 1 && existing <= 5) {
+      const existingIdeo = parseInt(article.getAttribute(IDEOLOGY_ATTR) || '', 10);
+      if ((existing >= 1 && existing <= 5) && (existingIdeo >= -2 && existingIdeo <= 2)) {
         setIndicatorLevel(article, existing, wordCount);
+        setIdeologyIndicator(article, existingIdeo);
         return;
       }
       
@@ -296,13 +334,23 @@
       if (res?.error) {
         log('Classification error', res.error);
         setIndicatorLevel(article, null, wordCount);
+        setIdeologyIndicator(article, null);
         return;
       }
       const rating = res?.rating;
+      const ideology = res?.ideology;
       setIndicatorLevel(article, rating, wordCount);
+      setIdeologyIndicator(article, ideology);
+
+      // Cache by tweet ID if available to avoid reclassification
+      const tweetId = data?.id;
+      if (tweetId) {
+        processedTweets.set(tweetId, { level: rating, ideology });
+      }
     } catch (e) {
       log('Classification exception', e);
       setIndicatorLevel(article, null, wordCount);
+      setIdeologyIndicator(article, null);
     }
   }
 
