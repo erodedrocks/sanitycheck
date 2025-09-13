@@ -542,7 +542,10 @@
         if (Array.isArray(targets) && targets.length && window.discourager && typeof window.discourager.markTweetsNotInterested === 'function') {
           await window.discourager.markTweetsNotInterested(targets);
         }
-        try { btnCleanse.textContent = 'Feed Cleansed!'; } catch(_){ }
+        try { 
+          btnCleanse.textContent = 'Feed Cleansed!';
+          stopAudio()
+         } catch(_){ }
         setTimeout(() => { try { cleanserHost?.remove(); } catch(_){ } }, 1200);
       } catch (e) {
         try { btnCleanse.textContent = 'Error'; } catch(_){ }
