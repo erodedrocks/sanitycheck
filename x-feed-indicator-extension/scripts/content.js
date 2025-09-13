@@ -9,7 +9,7 @@
   const queue = [];
   let inFlight = 0;
   let config = { enabled: true };
-  const processedTweets = new Set(); // Global deduplication
+  const processedTweets = new Map(); // Global deduplication
 
   function log(...args) {
     // Namespace logs to make them easy to filter in DevTools
@@ -147,18 +147,16 @@
     ensureIndicator(article, data);
     if (!data) return;
     
-    // Create unique identifier for deduplication
-    const tweetId = `${data.displayName || 'unknown'}-${data.text}-${data.timestamp || 'no-time'}`;
-    
-    // Skip if already processed
-    if (processedTweets.has(tweetId)) return;
+    // Skip if already processed using tweet ID
+    if (data.id && processedTweets.has(data.id)) {
+      enqueue(() => setIndicatorLevel(article, processedTweets.get(data.id), 0));
+    };
     
     // Enqueue classification only when text is available and not already done/pending
     const state = article.getAttribute(STATE_ATTR);
     if (config.enabled && data.text && state !== 'done' && state !== 'pending') {
       // mark pending immediately to avoid duplicated enqueues
       article.setAttribute(STATE_ATTR, 'pending');
-      processedTweets.add(tweetId);
       const ind = article.querySelector('.xfi-indicator');
       if (ind) ind.classList.add('pending');
       enqueue(() => classifyArticle(article, data));
@@ -238,6 +236,13 @@
       ind.classList.add('error');
       ind.textContent = `INF: ?`;
       article.setAttribute('data-xfi-state', 'error');
+    }
+    
+    // Get tweet ID and add to Map if not already processed
+    const data = extractTweetData(article);
+    const tweetId = data?.id;
+    if (tweetId && !processedTweets.has(tweetId)) {
+      processedTweets.set(tweetId, level);
     }
   }
 
