@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message && message.type === 'ANTHROPIC_CLASSIFY') {
     (async () => {
       try {
-        const { text, model = 'claude-sonnet-4-20250514', fullData} = message.payload || {};
+        const { text, model = 'claude-3-7-sonnet-20250219', fullData} = message.payload || {};
         if (!text || !text.trim()) {
           sendResponse({ error: 'Missing tweet text' });
           return;

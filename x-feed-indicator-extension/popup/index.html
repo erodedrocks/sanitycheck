@@ -3,14 +3,44 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SanityCheck</title>
+    <title>Feed Cleanser</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="wrap">
-      <h1>SanityCheck • X/Twitter</h1>
+    <div id="popupOverlay" class="popup-overlay">
+      <div class="popup-container">
+        <!-- Main Warning Screen -->
+        <div id="warningScreen" class="warning-screen">
+          <div class="warning-icon">⚠️</div>
+          <h2 class="popup-title">Woah, Slow Down!</h2>
+          <p class="popup-message">
+            Your feed is getting pretty hefty. Remember, social media forces you into a bubble.
+            Take a moment to breathe and reconnect with reality.
+          </p>
+          <div class="buttons-container">
+            <button id="breakBtn" class="btn btn-break">
+              OK - Take 3 Min Break
+            </button>
+            <button id="cleanseBtn" class="btn btn-cleanse">
+              Yes - Cleanse Feed
+            </button>
+          </div>
+        </div>
+
+        <!-- Timer Screen -->
+        <div id="timerScreen" class="timer-screen">
+          <div class="grass-text">🌱 Touch Some Grass 🌱</div>
+          <div id="timerDisplay" class="timer-display">3:00</div>
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <div class="nature-emojis">🌿 🦋 🌸 🌳 ☀️</div>
+          <div class="zen-message" id="zenMessage">
+            Step away from the screen and breathe...
+          </div>
+        </div>
+      </div>
     </div>
     <script src="index.js"></script>
   </body>
   </html>
-

@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "description": "Scrapes tweets from the home feed and adds a visual indicator to each processed tweet.",
   "action": {
-    "default_title": "X Feed Indicator",
-    "default_popup": "popup/index.html"
+    "default_title": "X Feed Indicator"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
     "https://twitter.com/*",
@@ -25,7 +25,7 @@
         "https://x.com/*",
         "https://*.x.com/*"
       ],
-      "js": ["scripts/content.js"],
+      "js": ["scripts/content.js", "scripts/discourager.js"],
       "css": ["styles/content.css"],
       "run_at": "document_idle"
     }

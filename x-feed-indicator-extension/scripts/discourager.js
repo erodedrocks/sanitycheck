@@ -1,3 +1,4 @@
+(function(){
 class TwitterDiscourager {
   constructor() {
     this.init();
@@ -206,12 +207,48 @@ class TwitterDiscourager {
   }
 }
 
-// Initialize the discourager
+// Initialize the discourager and expose helpers
 const discourager = new TwitterDiscourager();
+try { window.discourager = discourager; } catch (_) {}
+if (typeof module !== 'undefined') {
+  try { module.exports = { discourager }; } catch (_) {}
+}
 
-module.exports = {discourager};
-// const targetTweetIds = ids; module.exports = discourager;
+// Message handlers to integrate with the popup
+try {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message || !message.type) return;
+    (async () => {
+      try {
+        if (message.type === 'DISCOURAGER_MARK_NOT_INTERESTED') {
+          const targets = (message.payload && message.payload.targets) || [];
+          await discourager.markTweetsNotInterested(targets);
+          sendResponse({ ok: true, count: targets.length });
+          return;
+        }
+        if (message.type === 'DISCOURAGER_GET_IDENTIFIERS') {
+          const list = discourager.getTweetIdentifiers();
+          sendResponse({ ok: true, list });
+          return;
+        }
+        if (message.type === 'DISCOURAGER_GET_BY_KEYWORD') {
+          const { keyword = '' } = message.payload || {};
+          const list = discourager.getVisibleTweetsByKeyword(keyword || '');
+          sendResponse({ ok: true, list });
+          return;
+        }
+        if (message.type === 'DISCOURAGER_GET_BY_AUTHOR') {
+          const { author = '' } = message.payload || {};
+          const list = discourager.getVisibleTweetsByAuthor(author || '');
+          sendResponse({ ok: true, list });
+          return;
+        }
+      } catch (e) {
+        sendResponse({ ok: false, error: e?.message || String(e) });
+      }
+    })();
+    return true; // async
+  });
+} catch (_) {}
 
-// const targetList = targetTweetIds.filter(tuple => tuple[1] >= 4);
-
-// // await discourager.markTweetsNotInterested(targetList);
+})();

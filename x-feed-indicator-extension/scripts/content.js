@@ -7,7 +7,7 @@
   const IDEOLOGY_ATTR = "data-xfi-ideology";  // -2..2
   const STATE_ATTR = "data-xfi-state";        // pending|done|error
   const MAX_CONCURRENCY = 2;
-  const MAX_CACHE_SIZE = 30;
+  const MAX_CACHE_SIZE = 500;
   const queue = [];
   let inFlight = 0;
   let config = { enabled: true };
@@ -296,6 +296,7 @@
     if (tweetId && !processedTweets.has(tweetId)) {
       addToCache(tweetId, level);
     }
+    maybeShowCleanserOverlay();
   }
 
   function setIdeologyIndicator(article, ideology) {
@@ -329,7 +330,7 @@
       
       const res = await chrome.runtime.sendMessage({
         type: 'ANTHROPIC_CLASSIFY',
-        payload: { text: data.text, model: 'claude-sonnet-4-20250514', fullData: data},
+        payload: { text: data.text, model: 'claude-3-7-sonnet-20250219', fullData: data},
       });
       if (res?.error) {
         log('Classification error', res.error);
@@ -347,6 +348,7 @@
       if (tweetId) {
         processedTweets.set(tweetId, { level: rating, ideology });
       }
+      maybeShowCleanserOverlay();
     } catch (e) {
       log('Classification exception', e);
       setIndicatorLevel(article, null, wordCount);
@@ -395,6 +397,163 @@
     return null;
   }
 
-})();
+  // ------------- Feed Cleanser Overlay (inline, not popup) -------------
+  let cleanserShown = false;
+  let cleanserHost = null;
 
-module.exports = {processedTweets}
+  function computeStats() {
+    let count = 0;
+    let sum = 0;
+    for (const [, v] of processedTweets.entries()) {
+      let lvl = null;
+      if (typeof v === 'number') lvl = v;
+      else if (v && typeof v === 'object' && typeof v.level === 'number') lvl = v.level;
+      if (typeof lvl === 'number' && lvl >= 1 && lvl <= 5) {
+        count++;
+        sum += lvl;
+      }
+    }
+    const avg = count ? (sum / count) : 0;
+    return { count, avg };
+  }
+
+  function maybeShowCleanserOverlay() {
+    if (cleanserShown) return;
+    const { count, avg } = computeStats();
+    if (count > 40 && avg > 3.5) {
+      try { openCleanserOverlay(); } catch (e) {}
+    }
+  }
+
+  function openCleanserOverlay() {
+    if (cleanserShown) return;
+    cleanserShown = true;
+    const host = document.createElement('div');
+    host.id = 'xfi-cleanser-root';
+    host.style.position = 'fixed';
+    host.style.zIndex = '2147483647';
+    host.style.inset = '0';
+    host.style.pointerEvents = 'none';
+    document.documentElement.appendChild(host);
+    cleanserHost = host;
+
+    const shadow = host.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = `
+      .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); pointer-events: auto; }
+      .card { width: min(92vw, 520px); border-radius: 16px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; box-shadow: 0 20px 40px rgba(0,0,0,0.3); position: relative; }
+      .row { display: flex; gap: 12px; justify-content: center; margin-top: 12px; }
+      .title { font-size: 22px; font-weight: 800; margin: 6px 0 8px; text-align: center; }
+      .msg { text-align: center; opacity: 0.9; }
+      .btn { padding: 12px 16px; border: 0; border-radius: 999px; font-weight: 700; cursor: pointer; color: #fff; }
+      .break { background: linear-gradient(45deg, #ff6b6b, #ff8e8e); }
+      .cleanse { background: linear-gradient(45deg, #4ecdc4, #6bcf7e); }
+      .timer { display:none; text-align:center; }
+      .timer.active { display:block; }
+      .time { font-size: 36px; font-weight: 800; margin: 8px 0; }
+      .bar { height:8px; background: rgba(255,255,255,0.25); border-radius: 4px; overflow: hidden; }
+      .fill { height: 100%; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); width: 0%; transition: width 0.1s ease; }
+      .close { position:absolute; top:8px; right:12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer; }
+    `;
+    const wrap = document.createElement('div');
+    wrap.className = 'overlay';
+    wrap.innerHTML = `
+      <div class="card">
+        <div class="title">Woah, Slow Down!</div>
+        <div class="msg">Your feed is getting heavy. Consider a break or cleanse highly inflammatory items.</div>
+        <div class="row">
+          <button class="btn break">OK - Take 3 Min Break</button>
+          <button class="btn cleanse">Yes - Cleanse Feed</button>
+        </div>
+        <div class="timer" id="xfi-timer">
+          <div class="time" id="xfi-time">3:00</div>
+          <div class="bar"><div class="fill" id="xfi-fill"></div></div>
+          <div style="opacity:.9;margin-top:8px;" id="xfi-zen">Step away from the screen and breathe...</div>
+        </div>
+      </div>
+    `;
+    shadow.appendChild(style);
+    shadow.appendChild(wrap);
+
+    const btnBreak = shadow.querySelector('.break');
+    const btnCleanse = shadow.querySelector('.cleanse');
+    const btnClose = shadow.querySelector('.close');
+    const timer = shadow.getElementById('xfi-timer');
+    const timeEl = shadow.getElementById('xfi-time');
+    const fill = shadow.getElementById('xfi-fill');
+    const zen = shadow.getElementById('xfi-zen');
+
+    let total = 180; // 3 minutes
+    let left = total;
+    let t1 = null, t2 = null;
+    function fmt(sec){ const m=Math.floor(sec/60), s=sec%60; return `${m}:${String(s).padStart(2,'0')}`; }
+    function update(){ left--; if (timeEl) timeEl.textContent = fmt(left); if (fill) fill.style.width = `${((total-left)/total)*100}%`; if (left<=0) finish(); }
+    function finish(){ if (t1) clearInterval(t1); if (t2) clearInterval(t2); close(); }
+    function close(){ try { cleanserHost?.remove(); } catch(_){} }
+
+    btnClose?.addEventListener('click', close);
+    btnBreak?.addEventListener('click', () => {
+      if (!timer) return;
+      timer.classList.add('active');
+      t1 = setInterval(update, 1000);
+      t2 = setInterval(() => { if (zen) zen.textContent = randomZen(); }, 20000);
+    });
+    btnCleanse?.addEventListener('click', async () => {
+      try { btnCleanse.textContent = 'Cleansing...'; btnCleanse.disabled = true; } catch(_){ }
+      try {
+        const targets = buildHighRiskTargets();
+        if (Array.isArray(targets) && targets.length && window.discourager && typeof window.discourager.markTweetsNotInterested === 'function') {
+          await window.discourager.markTweetsNotInterested(targets);
+        }
+        try { btnCleanse.textContent = '✅ Feed Cleansed!'; } catch(_){ }
+        setTimeout(() => { try { cleanserHost?.remove(); } catch(_){ } }, 1200);
+      } catch (e) {
+        try { btnCleanse.textContent = 'Error'; } catch(_){ }
+        setTimeout(() => { try { cleanserHost?.remove(); } catch(_){ } }, 1200);
+      }
+    });
+
+    function buildHighRiskTargets(){
+      const out = [];
+      for (const [id, v] of processedTweets.entries()) {
+        if (!id) continue;
+        let lvl = null;
+        if (typeof v === 'number') lvl = v; else if (v && typeof v === 'object') lvl = v.level;
+        if (typeof lvl === 'number' && lvl >= 4) out.push({ id });
+      }
+      return out;
+    }
+
+    function randomZen(){
+      const list = [
+        'Step away from the screen and breathe...',
+        'Feel the sunlight on your skin...',
+        'Listen to the birds singing...',
+        'Notice the world around you...'
+      ];
+      return list[Math.floor(Math.random()*list.length)];
+    }
+  }
+
+  // Expose processed tweet data to popup via messaging
+  try {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (!message || !message.type) return;
+      if (message.type === 'XFI_GET_PROCESSED') {
+        const items = [];
+        for (const [id, val] of processedTweets.entries()) {
+          if (!id) continue;
+          if (typeof val === 'number') {
+            items.push({ id, rating: val, ideology: null });
+          } else if (val && typeof val === 'object') {
+            items.push({ id, rating: val.level, ideology: val.ideology });
+          }
+        }
+        sendResponse({ ok: true, items });
+        processedTweets.clear()
+        return true;
+      }
+    });
+  } catch (e) {}
+
+})();
