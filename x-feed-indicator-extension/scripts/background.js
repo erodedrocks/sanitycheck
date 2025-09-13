@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message && message.type === 'ANTHROPIC_CLASSIFY') {
     (async () => {
       try {
-        const { text, model = 'claude-3-haiku-20240307', fullData} = message.payload || {};
+        const { text, model = 'claude-sonnet-4-20250514', fullData} = message.payload || {};
         if (!text || !text.trim()) {
           sendResponse({ error: 'Missing tweet text' });
           return;
@@ -88,12 +88,12 @@ function parseComposite(s) {
   if (!s) return null;
   const str = String(s).trim();
   // Expect formats like: "3, -1" or "2,0" (no extra text)
-  const m = str.match(/\b([1-5])\b\s*,\s*([+-]?\d)\b/);
+  const m = str.match(/\b([1-5])\b\s*,\s*([+-]?\d*)\b/);
   if (!m) return null;
   const rating = parseInt(m[1], 10);
   const ideology = parseInt(m[2], 10);
   if (!(rating >= 1 && rating <= 5)) return null;
-  if (!(ideology >= -2 && ideology <= 2)) return null;
+  if (!((ideology >= -2 && ideology <= 2) || ideology == -10)) return null;
   return { rating, ideology };
 }
 

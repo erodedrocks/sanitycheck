@@ -153,7 +153,7 @@
     // Prefer adding near the username block to avoid layout shifts
     let anchor = article.querySelector('div[data-testid="User-Name"]');
 
-    // Rating indicator (LVL)
+    // Rating indicator (INF)
     if (!article.querySelector('.xfi-indicator')) {
       const indicator = document.createElement('span');
       indicator.className = 'xfi-indicator pending';
@@ -281,12 +281,12 @@
     ind.classList.remove('pending', 'error', 'level-1', 'level-2', 'level-3', 'level-4', 'level-5');
     if (typeof level === 'number' && level >= 1 && level <= 5) {
       ind.classList.add(`level-${level}`);
-      ind.textContent = `LVL ${level}`;
+      ind.textContent = `INF ${level}`;
       article.setAttribute('data-xfi-rating', String(level));
       article.setAttribute('data-xfi-state', 'done');
     } else {
       ind.classList.add('error');
-      ind.textContent = `LVL ?`;
+      ind.textContent = `INF ?`;
       article.setAttribute('data-xfi-state', 'error');
     }
     
@@ -301,8 +301,8 @@
   function setIdeologyIndicator(article, ideology) {
     const el = article.querySelector('.xfi-ideology');
     if (!el) return;
-    el.classList.remove('pending', 'error', 'ideology--2', 'ideology--1', 'ideology-0', 'ideology-1', 'ideology-2');
-    if (typeof ideology === 'number' && ideology >= -2 && ideology <= 2) {
+    el.classList.remove('pending', 'error', 'ideology--10', 'ideology--2', 'ideology--1', 'ideology-0', 'ideology-1', 'ideology-2');
+    if (typeof ideology === 'number' && ((ideology >= -2 && ideology <= 2) || ideology == -10)) {
       const cls = `ideology-${ideology}`; // e.g., ideology--1, ideology-0, ideology-2
       el.classList.add(cls);
       el.textContent = `IDEO ${ideology}`;
@@ -321,7 +321,7 @@
       // Avoid duplicate work: if rating already present, just paint
       const existing = parseInt(article.getAttribute('data-xfi-rating') || '', 10);
       const existingIdeo = parseInt(article.getAttribute(IDEOLOGY_ATTR) || '', 10);
-      if ((existing >= 1 && existing <= 5) && (existingIdeo >= -2 && existingIdeo <= 2)) {
+      if ((existing >= 1 && existing <= 5) && ((existingIdeo >= -2 && existingIdeo <= 2) || existingIdeo == -10)) {
         setIndicatorLevel(article, existing, wordCount);
         setIdeologyIndicator(article, existingIdeo);
         return;
@@ -329,7 +329,7 @@
       
       const res = await chrome.runtime.sendMessage({
         type: 'ANTHROPIC_CLASSIFY',
-        payload: { text: data.text, model: 'claude-3-haiku-20240307', fullData: data},
+        payload: { text: data.text, model: 'claude-sonnet-4-20250514', fullData: data},
       });
       if (res?.error) {
         log('Classification error', res.error);
