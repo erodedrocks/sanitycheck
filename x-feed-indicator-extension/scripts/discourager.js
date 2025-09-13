@@ -6,8 +6,7 @@ class TwitterDiscourager {
   }
 
   init() {
-    // Wait for Twitter to load
-    if (document.readyState === 'loading') {
+    if (document.readyState === 'loading') { //Load Twitter
       document.addEventListener('DOMContentLoaded', () => this.setupObserver());
     } else {
       this.setupObserver();
@@ -30,7 +29,6 @@ class TwitterDiscourager {
   }
 
   cacheTweetElements() {
-    // Just cache tweet elements, don't add buttons
     const tweets = document.querySelectorAll('article[data-testid="tweet"]:not([data-cached])');
     
     tweets.forEach(tweet => {
@@ -38,7 +36,7 @@ class TwitterDiscourager {
     });
   }
 
-  // Get tweet identifiers for building your target list
+  // Get tweet identifiers for building a target list of inflammatory posts
   getTweetIdentifiers() {
     const tweets = document.querySelectorAll('article[data-testid="tweet"]');
     const identifiers = [];
@@ -190,21 +188,6 @@ class TwitterDiscourager {
     return new Promise(resolve => setTimeout(resolve, delay));
   }
 
-  // Utility function to help you build target lists
-  getVisibleTweetsByKeyword(keyword) {
-    const identifiers = this.getTweetIdentifiers();
-    return identifiers.filter(tweet => 
-      tweet.text?.toLowerCase().includes(keyword.toLowerCase()) ||
-      tweet.author?.toLowerCase().includes(keyword.toLowerCase())
-    );
-  }
-
-  getVisibleTweetsByAuthor(authorHandle) {
-    const identifiers = this.getTweetIdentifiers();
-    return identifiers.filter(tweet => 
-      tweet.author === authorHandle || tweet.author === `@${authorHandle}`
-    );
-  }
 }
 
 // Initialize the discourager and expose helpers
@@ -228,18 +211,6 @@ try {
         }
         if (message.type === 'DISCOURAGER_GET_IDENTIFIERS') {
           const list = discourager.getTweetIdentifiers();
-          sendResponse({ ok: true, list });
-          return;
-        }
-        if (message.type === 'DISCOURAGER_GET_BY_KEYWORD') {
-          const { keyword = '' } = message.payload || {};
-          const list = discourager.getVisibleTweetsByKeyword(keyword || '');
-          sendResponse({ ok: true, list });
-          return;
-        }
-        if (message.type === 'DISCOURAGER_GET_BY_AUTHOR') {
-          const { author = '' } = message.payload || {};
-          const list = discourager.getVisibleTweetsByAuthor(author || '');
           sendResponse({ ok: true, list });
           return;
         }
