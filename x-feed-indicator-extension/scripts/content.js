@@ -221,12 +221,12 @@
     ind.classList.remove('pending', 'error', 'level-1', 'level-2', 'level-3', 'level-4', 'level-5');
     if (typeof level === 'number' && level >= 1 && level <= 5) {
       ind.classList.add(`level-${level}`);
-      ind.textContent = `Inflammation: ${level}`;
+      ind.textContent = `INF: ${level}`;
       article.setAttribute('data-xfi-rating', String(level));
       article.setAttribute('data-xfi-state', 'done');
     } else {
       ind.classList.add('error');
-      ind.textContent = `Inflammation: ?`;
+      ind.textContent = `INF: ?`;
       article.setAttribute('data-xfi-state', 'error');
     }
   }

@@ -149,5 +149,16 @@ Definition:
 Rules:
 - Output ONLY a single digit 1,2,3,4, or 5.
 - No extra words, punctuation, or explanation.
-`;
+
+Examples:
+Tweet: "I disagree with this policy but let's discuss."
+Label: 2
+
+Tweet: "You're clueless and your take is garbage."
+Label: 4
+
+Tweet: "We should fire anyone who thinks this."
+Label: 3
+
+Now classify the tweet.`;
 }
