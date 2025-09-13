@@ -23,54 +23,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   //   // e.g. collect, deduplicate, or forward to a backend
   // }
 
-  if (message && message.type === 'ANTHROPIC_COMPLETE') {
-    (async () => {
-      try {
-        const { prompt, model = 'claude-3-haiku-20240307' } = message.payload || {};
-        if (!prompt) {
-          sendResponse({ error: 'Missing prompt' });
-          return;
-        }
-        const { anthropicApiKey } = await chrome.storage.local.get('anthropicApiKey');
-        if (!anthropicApiKey) {
-          sendResponse({ error: 'Missing Anthropic API key. Set it in Options.' });
-          return;
-        }
-
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            'x-api-key': anthropicApiKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': true
-          },
-          body: JSON.stringify({
-            model,
-            max_tokens: 256,
-            messages: [
-              { role: 'user', content: prompt },
-            ],
-          }),
-        });
-
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '');
-          sendResponse({ error: `API ${resp.status}: ${text || resp.statusText}` });
-          return;
-        }
-        const data = await resp.json();
-        // Anthropic messages API returns { content: [{ type: 'text', text: '...' }], ... }
-        const content = Array.isArray(data?.content) ? data.content : [];
-        const firstText = content.find((c) => c?.type === 'text')?.text || '';
-        sendResponse({ text: firstText, raw: data });
-      } catch (e) {
-        sendResponse({ error: e?.message || String(e) });
-      }
-    })();
-    return true; // keep the message channel open for async response
-  }
-
   if (message && message.type === 'ANTHROPIC_CLASSIFY') {
     (async () => {
       try {
