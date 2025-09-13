@@ -13,6 +13,7 @@
   let config = { enabled: true };
   const processedTweets = new Map(); // O(1) lookup
   const tweetLevels = [];
+  this.audioFiles = [];
 
   function log(...args) {
     // Namespace logs to make them easy to filter in DevTools
@@ -306,7 +307,12 @@
     if (typeof ideology === 'number' && ((ideology >= -2 && ideology <= 2) || ideology == -10)) {
       const cls = `ideology-${ideology}`; // e.g., ideology--1, ideology-0, ideology-2
       el.classList.add(cls);
-      el.textContent = `IDEO ${ideology}`;
+      if (ideology == -2) el.textContent = `LEFT`;
+      else if (ideology == -1) el.textContent = `CL`;
+      else if (ideology == 0) el.textContent = `CNTR`;
+      else if (ideology == 1) el.textContent = `CR`;
+      else if (ideology == 2) el.textContent = `RIGHT`;
+      else el.textContent = `IDEO ${ideology}`;
       article.setAttribute(IDEOLOGY_ATTR, String(ideology));
     } else {
       el.classList.add('error');
@@ -420,8 +426,32 @@
   function maybeShowCleanserOverlay() {
     if (cleanserShown) return;
     const { count, avg } = computeStats();
-    if (count > 40 && avg > 3.5) {
+    if (count > 5 && avg > 1.5) {
       try { openCleanserOverlay(); } catch (e) {}
+    }
+  }
+
+  function startRandomAudio() {
+    try {
+      // Avoid restarting if already playing
+      if (this.currentAudio && !this.currentAudio.paused) return;
+      const randomAudio = this.audioFiles[Math.floor(Math.random() * this.audioFiles.length)];
+      // randomAudio entries already include the 'audio/' prefix
+      const audioUrl = chrome.runtime.getURL(randomAudio);
+      this.currentAudio = new Audio(audioUrl);
+      this.currentAudio.volume = 0.4;
+      this.currentAudio.loop = true;
+      this.currentAudio.play().catch(e => console.log('Audio autoplay blocked:', e));
+    } catch (error) {
+      console.error('Failed to load audio:', error);
+    }
+  }
+    
+  function stopAudio() {
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio.currentTime = 0;
+      this.currentAudio = null;
     }
   }
 
@@ -436,6 +466,12 @@
     host.style.pointerEvents = 'none';
     document.documentElement.appendChild(host);
     cleanserHost = host;
+
+    if (audioFiles.length == 0) for (let i = 1; i <= 15; i++) {
+      this.audioFiles.push(`audio/jazz${i}.mp3`);
+    }
+    stopAudio()
+    startRandomAudio()
 
     const shadow = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');

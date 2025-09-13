@@ -29,8 +29,11 @@
 
     startRandomAudio() {
       try {
+        // Avoid restarting if already playing
+        if (this.currentAudio && !this.currentAudio.paused) return;
         const randomAudio = this.audioFiles[Math.floor(Math.random() * this.audioFiles.length)];
-        const audioUrl = chrome.runtime.getURL(`audio/${randomAudio}`);
+        // randomAudio entries already include the 'audio/' prefix
+        const audioUrl = chrome.runtime.getURL(randomAudio);
         this.currentAudio = new Audio(audioUrl);
         this.currentAudio.volume = 0.4;
         this.currentAudio.loop = true;
@@ -53,7 +56,10 @@
       const cleanseBtn = document.getElementById('cleanseBtn');
       breakBtn?.addEventListener('click', () => this.startBreakTimer());
       cleanseBtn?.addEventListener('click', () => this.cleanseFeed());
+      // Try autoplay on popup open; some browsers may block it.
       this.startRandomAudio();
+      // Fallback: start on first user interaction if autoplay was blocked.
+      document.addEventListener('click', () => this.startRandomAudio(), { once: true });
     }
 
     startBreakTimer() {
