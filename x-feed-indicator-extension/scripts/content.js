@@ -6,14 +6,45 @@
   const RATING_ATTR = "data-xfi-rating";      // 1-5
   const STATE_ATTR = "data-xfi-state";        // pending|done|error
   const MAX_CONCURRENCY = 2;
+  const MAX_CACHE_SIZE = 30;
   const queue = [];
   let inFlight = 0;
   let config = { enabled: true };
-  const processedTweets = new Map(); // Global deduplication
+  const processedTweets = new Map(); // O(1) lookup
+  const tweetLevels = [];
 
   function log(...args) {
     // Namespace logs to make them easy to filter in DevTools
     console.log("[XFI]", ...args);
+  }
+
+  function binarySearch(arr, level) {
+    let left = 0;
+    let right = arr.length;
+    
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2);
+      if (arr[mid].level < level) {
+        left = mid + 1;
+      } else {
+        right = mid;
+      }
+    }
+    return left;
+  }
+
+  // Add tweet to cache with priority-based eviction
+  function addToCache(tweetId, level) {
+    // Remove lowest level if cache is full
+    if (processedTweets.size >= MAX_CACHE_SIZE) {
+      const lowest = tweetLevels.shift(); // O(1) - remove first (lowest)
+      processedTweets.delete(lowest.tweetId);
+    }
+    
+    // Insert in sorted position: O(log n) binary search
+    const insertPos = binarySearch(tweetLevels, level);
+    tweetLevels.splice(insertPos, 0, { tweetId, level });
+    processedTweets.set(tweetId, level);
   }
 
   function selectTweetArticles(root = document) {
@@ -238,11 +269,11 @@
       article.setAttribute('data-xfi-state', 'error');
     }
     
-    // Get tweet ID and add to Map if not already processed
+    // Get tweet ID and add to cache if not already processed
     const data = extractTweetData(article);
     const tweetId = data?.id;
     if (tweetId && !processedTweets.has(tweetId)) {
-      processedTweets.set(tweetId, level);
+      addToCache(tweetId, level);
     }
   }
 
