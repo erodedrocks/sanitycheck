@@ -209,7 +209,8 @@ class TwitterDiscourager {
 // Initialize the discourager
 const discourager = new TwitterDiscourager();
 
-// const targetTweetIds = ids;
+module.exports = {discourager};
+// const targetTweetIds = ids; module.exports = discourager;
 
 // const targetList = targetTweetIds.filter(tuple => tuple[1] >= 4);
 
