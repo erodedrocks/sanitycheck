@@ -1,22 +1,22 @@
-// X/Twitter Feed Indicator — Content Script (MV3)
+// X/Twitter Feed Indicator
 // Observes the timeline, scrapes basic tweet info, and injects a small indicator.
 
 (function () {
-  const PROCESSED_ATTR = "data-xfi-processed"; // indicator injected
-  const RATING_ATTR = "data-xfi-rating";      // 1-5
-  const IDEOLOGY_ATTR = "data-xfi-ideology";  // -2..2
-  const STATE_ATTR = "data-xfi-state";        // pending|done|error
+  const PROCESSED_ATTR = "data-xfi-processed";
+  const RATING_ATTR = "data-xfi-rating";
+  const IDEOLOGY_ATTR = "data-xfi-ideology";
+  const STATE_ATTR = "data-xfi-state";
   const MAX_CONCURRENCY = 2;
   const MAX_CACHE_SIZE = 500;
   const queue = [];
   let inFlight = 0;
   let config = { enabled: true };
-  const processedTweets = new Map(); // O(1) lookup
+  const processedTweets = new Map();
   const tweetLevels = [];
   this.audioFiles = [];
 
   function log(...args) {
-    // Namespace logs to make them easy to filter in DevTools
+
     console.log("[XFI]", ...args);
   }
 
@@ -35,41 +35,39 @@
     return left;
   }
 
-  // Add tweet to cache with priority-based eviction
+  // Add tweet to cache, following priority queue logic
   function addToCache(tweetId, level) {
     // Remove lowest level if cache is full
     if (processedTweets.size >= MAX_CACHE_SIZE) {
-      const lowest = tweetLevels.shift(); // O(1) - remove first (lowest)
+      const lowest = tweetLevels.shift();
       processedTweets.delete(lowest.tweetId);
     }
     
-    // Insert in sorted position: O(log n) binary search
+    // Insert in sorted position
     const insertPos = binarySearch(tweetLevels, level);
     tweetLevels.splice(insertPos, 0, { tweetId, level });
     processedTweets.set(tweetId, level);
   }
 
   function selectTweetArticles(root = document) {
-    // Target tweet containers. X/Twitter commonly uses these attributes.
-    // We intentionally keep this selector conservative and robust to minor changes.
     return root.querySelectorAll('article[role="article"][data-testid="tweet"]');
   }
 
   function extractTweetData(article) {
     try {
-      // Extract account name
+      // Get account name
       const nameElement = article.querySelector('div[data-testid="User-Name"] span span, [data-testid="User-Name"] span span');
       const accountName = nameElement ? nameElement.textContent.trim() : '';
       
-      // Extract tweet text
+      // Get tweet text
       const textElement = article.querySelector('div[data-testid="tweetText"], [lang] div[dir="auto"], div[lang]');
       const tweetText = textElement ? textElement.textContent.trim() : '';
       
-      // Extract timestamp
+      // Get timestamp
       const timeElement = article.querySelector('time');
       const timestamp = timeElement ? (timeElement.getAttribute('datetime') || timeElement.textContent.trim()) : '';
       
-      // Extract tweet ID and handle from status link
+      // Get tweet id
       let tweetId = null;
       let handle = null;
       const statusLink = article.querySelector('a[href*="/status/"]');
@@ -77,12 +75,12 @@
         const match = statusLink.href.match(/status\/(\d+)/);
         if (match) tweetId = match[1];
         
-        // Extract handle from URL path like "/piersmorgan/status/..."
+        // Extract @
         const handleMatch = statusLink.href.match(/\/([^\/]+)\/status\//);
         if (handleMatch) handle = '@' + handleMatch[1];
       }
       
-      // Extract verification status and account type
+      // Extract verification status
       const verifiedElement = article.querySelector('[data-testid="icon-verified"]');
       const isVerified = !!verifiedElement;
       
@@ -94,12 +92,11 @@
       const companyElement = article.querySelector('[data-testid="icon-business"], [data-testid="icon-brand"], [aria-label*="Business"], [aria-label*="Brand"], [aria-label*="Company"]');
       const isCompany = !!companyElement;
       
-      // Extract engagement metrics
+      // Get engagement metrics
       let likeCount = 0;
       let commentCount = 0;
       let retweetCount = 0;
       
-      // Look for engagement buttons and extract counts
       const likeButton = article.querySelector('[data-testid="like"]');
       if (likeButton) {
         const likeText = likeButton.getAttribute('aria-label') || '';
@@ -121,7 +118,7 @@
         if (retweetMatch) retweetCount = parseInt(retweetMatch[1], 10);
       }
       
-      // Only return data if we have tweet text
+      // Only return data if we have tweet text, since most necessary info is in the text
       if (tweetText) {
         const data = {
           id: tweetId || '',
@@ -137,7 +134,6 @@
           retweetCount: retweetCount || null,
         };
         
-        // Debug: print all extracted values
         console.log('[XFI] Extracted tweet data:', data);
         
         return data;
@@ -154,7 +150,7 @@
     // Prefer adding near the username block to avoid layout shifts
     let anchor = article.querySelector('div[data-testid="User-Name"]');
 
-    // Rating indicator (INF)
+    // InflammatoryRating indicator
     if (!article.querySelector('.xfi-indicator')) {
       const indicator = document.createElement('span');
       indicator.className = 'xfi-indicator pending';
@@ -162,13 +158,12 @@
       if (anchor) {
         anchor.appendChild(indicator);
       } else {
-        // Fallback: attach to the article; keep it subtle
         article.appendChild(indicator);
         article.classList.add('xfi-article-fallback');
       }
     }
 
-    // Ideology indicator (IDEO)
+    // Ideology indicator
     if (!article.querySelector('.xfi-ideology')) {
       const ideo = document.createElement('span');
       ideo.className = 'xfi-ideology pending';
@@ -325,7 +320,7 @@
     if (article.getAttribute('data-xfi-state') === 'done') return;
     const wordCount = (data.text ? data.text.trim().split(/\s+/).filter(Boolean).length : 0);
     try {
-      // Avoid duplicate work: if rating already present, just paint
+      // Avoid duplicate work
       const existing = parseInt(article.getAttribute('data-xfi-rating') || '', 10);
       const existingIdeo = parseInt(article.getAttribute(IDEOLOGY_ATTR) || '', 10);
       if ((existing >= 1 && existing <= 5) && ((existingIdeo >= -2 && existingIdeo <= 2) || existingIdeo == -10)) {
@@ -349,7 +344,7 @@
       setIndicatorLevel(article, rating, wordCount);
       setIdeologyIndicator(article, ideology);
 
-      // Cache by tweet ID if available to avoid reclassification
+      // Cache by tweet ID if available to avoid unnecessary reclassification
       const tweetId = data?.id;
       if (tweetId) {
         processedTweets.set(tweetId, { level: rating, ideology });
@@ -390,7 +385,6 @@
         }
       });
     } catch (e) {
-      // default stays true
     }
   }
 
@@ -403,7 +397,6 @@
     return null;
   }
 
-  // ------------- Feed Cleanser Overlay (inline, not popup) -------------
   let cleanserShown = false;
   let cleanserHost = null;
 
