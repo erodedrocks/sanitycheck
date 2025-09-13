@@ -128,7 +128,7 @@
     indicator.className = 'xfi-indicator';
     // Initial neutral content; pending state is applied when we enqueue
     const wordCount = (data?.text ? data.text.trim().split(/\s+/).filter(Boolean).length : 0);
-    indicator.textContent = `IMF: N/A • ${wordCount}w`;
+    indicator.textContent = `IMF: ...`;
 
     if (anchor) {
       anchor.appendChild(indicator);
