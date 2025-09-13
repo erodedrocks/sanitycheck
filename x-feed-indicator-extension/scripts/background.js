@@ -72,7 +72,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message && message.type === 'ANTHROPIC_CLASSIFY') {
-    alert("Hi")
     (async () => {
       try {
         const { text, model = 'claude-3-haiku-20240307' } = message.payload || {};
@@ -89,7 +88,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return;
         }
         const system = (classificationPrompt || defaultPrompt());
-
         const resp = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {

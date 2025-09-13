@@ -180,18 +180,18 @@
     ind.classList.remove('pending', 'error', 'level-1', 'level-2', 'level-3', 'level-4', 'level-5');
     if (typeof level === 'number' && level >= 1 && level <= 5) {
       ind.classList.add(`level-${level}`);
-      ind.textContent = `Inflammation: ${level} • ${wordCount}w`;
+      ind.textContent = `Inflammation: ${level}`;
       article.setAttribute('data-xfi-rating', String(level));
       article.setAttribute('data-xfi-state', 'done');
     } else {
       ind.classList.add('error');
-      ind.textContent = `Inflammation: ? • ${wordCount}w`;
+      ind.textContent = `Inflammation: ?`;
       article.setAttribute('data-xfi-state', 'error');
     }
   }
 
   async function classifyArticle(article, data) {
-    if (!data?.text) return;
+    if (!data?.text || data?.text == "") return;
     if (article.getAttribute('data-xfi-state') === 'done') return;
     const wordCount = (data.text ? data.text.trim().split(/\s+/).filter(Boolean).length : 0);
     try {
@@ -201,7 +201,7 @@
         setIndicatorLevel(article, existing, wordCount);
         return;
       }
-
+      
       const res = await chrome.runtime.sendMessage({
         type: 'ANTHROPIC_CLASSIFY',
         payload: { text: data.text, model: 'claude-3-haiku-20240307' },
