@@ -9,6 +9,7 @@
   const queue = [];
   let inFlight = 0;
   let config = { enabled: true };
+  const processedTweets = new Set(); // Global deduplication
 
   function log(...args) {
     // Namespace logs to make them easy to filter in DevTools
@@ -23,51 +24,83 @@
 
   function extractTweetData(article) {
     try {
-      const data = {
-        id: null,
-        displayName: null,
-        handle: null,
-        text: null,
-        timestamp: null,
-        permalink: null,
-      };
-
-      // Attempt to find a status link to extract tweet ID and permalink
+      // Extract account name
+      const nameElement = article.querySelector('div[data-testid="User-Name"] span span, [data-testid="User-Name"] span span');
+      const accountName = nameElement ? nameElement.textContent.trim() : '';
+      
+      // Extract tweet text
+      const textElement = article.querySelector('div[data-testid="tweetText"], [lang] div[dir="auto"], div[lang]');
+      const tweetText = textElement ? textElement.textContent.trim() : '';
+      
+      // Extract timestamp
+      const timeElement = article.querySelector('time');
+      const timestamp = timeElement ? (timeElement.getAttribute('datetime') || timeElement.textContent.trim()) : '';
+      
+      // Extract tweet ID and handle from status link
+      let tweetId = null;
+      let handle = null;
       const statusLink = article.querySelector('a[href*="/status/"]');
       if (statusLink) {
-        data.permalink = statusLink.href;
-        const m = statusLink.href.match(/status\/(\d+)/);
-        if (m) data.id = m[1];
+        const match = statusLink.href.match(/status\/(\d+)/);
+        if (match) tweetId = match[1];
+        
+        // Extract handle from URL path like "/piersmorgan/status/..."
+        const handleMatch = statusLink.href.match(/\/([^\/]+)\/status\//);
+        if (handleMatch) handle = '@' + handleMatch[1];
       }
-
-      // Display name and handle are under the User-Name testid
-      const userNameBlock = article.querySelector('div[data-testid="User-Name"]');
-      if (userNameBlock) {
-        const spans = Array.from(userNameBlock.querySelectorAll('span'))
-          .map((s) => s.textContent || "")
-          .filter(Boolean);
-        // Heuristics: first non-empty is often display name, first starting with @ is handle
-        data.displayName = spans.find((t) => t.trim().length > 0) || null;
-        data.handle = spans.find((t) => t.trim().startsWith("@")) || null;
+      
+      // Extract verified status
+      const verifiedElement = article.querySelector('[data-testid="icon-verified"]');
+      const isVerified = !!verifiedElement;
+      
+      // Extract engagement metrics
+      let likeCount = 0;
+      let commentCount = 0;
+      let retweetCount = 0;
+      
+      // Look for engagement buttons and extract counts
+      const likeButton = article.querySelector('[data-testid="like"]');
+      if (likeButton) {
+        const likeText = likeButton.getAttribute('aria-label') || '';
+        const likeMatch = likeText.match(/(\d+)/);
+        if (likeMatch) likeCount = parseInt(likeMatch[1], 10);
       }
-
-      // Tweet text
-      const textBlocks = article.querySelectorAll('div[data-testid="tweetText"]');
-      if (textBlocks && textBlocks.length) {
-        const text = Array.from(textBlocks)
-          .map((n) => n.textContent || "")
-          .join("\n")
-          .trim();
-        data.text = text || null;
+      
+      const commentButton = article.querySelector('[data-testid="reply"]');
+      if (commentButton) {
+        const commentText = commentButton.getAttribute('aria-label') || '';
+        const commentMatch = commentText.match(/(\d+)/);
+        if (commentMatch) commentCount = parseInt(commentMatch[1], 10);
       }
-
-      // Timestamp
-      const timeEl = article.querySelector('time');
-      if (timeEl) {
-        data.timestamp = timeEl.getAttribute('datetime') || timeEl.textContent || null;
+      
+      const retweetButton = article.querySelector('[data-testid="retweet"]');
+      if (retweetButton) {
+        const retweetText = retweetButton.getAttribute('aria-label') || '';
+        const retweetMatch = retweetText.match(/(\d+)/);
+        if (retweetMatch) retweetCount = parseInt(retweetMatch[1], 10);
       }
-
-      return data;
+      
+      // Only return data if we have tweet text
+      if (tweetText) {
+        const data = {
+          id: tweetId || '',
+          displayName: accountName || '',
+          handle: handle || '',
+          text: tweetText,
+          timestamp: timestamp || '',
+          isVerified: isVerified || null,
+          likeCount: likeCount || null,
+          commentCount: commentCount || null,
+          retweetCount: retweetCount || null,
+        };
+        
+        // Debug: print all extracted values
+        console.log('[XFI] Extracted tweet data:', data);
+        
+        return data;
+      }
+      
+      return null;
     } catch (err) {
       log("extractTweetData error", err);
       return null;
@@ -103,11 +136,19 @@
     const data = extractTweetData(article);
     ensureIndicator(article, data);
     if (!data) return;
+    
+    // Create unique identifier for deduplication
+    const tweetId = `${data.displayName || 'unknown'}-${data.text}-${data.timestamp || 'no-time'}`;
+    
+    // Skip if already processed
+    if (processedTweets.has(tweetId)) return;
+    
     // Enqueue classification only when text is available and not already done/pending
     const state = article.getAttribute(STATE_ATTR);
     if (config.enabled && data.text && state !== 'done' && state !== 'pending') {
       // mark pending immediately to avoid duplicated enqueues
       article.setAttribute(STATE_ATTR, 'pending');
+      processedTweets.add(tweetId);
       const ind = article.querySelector('.xfi-indicator');
       if (ind) ind.classList.add('pending');
       enqueue(() => classifyArticle(article, data));
