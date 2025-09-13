@@ -377,11 +377,19 @@
 
   async function loadConfig() {
     try {
-      const { xfiEnabled = true } = await chrome.storage.local.get('xfiEnabled');
+      const { xfiEnabled = true, numberbound = 40, scorebound = 3.5 } = await chrome.storage.local.get(['xfiEnabled', 'numberbound', 'scorebound']);
       config.enabled = !!xfiEnabled;
+      config.numberbound = numberbound;
+      config.scorebound = scorebound;
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area === 'local' && changes.xfiEnabled) {
           config.enabled = !!changes.xfiEnabled.newValue;
+        }
+        if (area == 'local' && changes.numberbound) {
+          config.numberbound = changes.numberbound.newValue;
+        }
+        if (area == 'local' && changes.scorebound) {
+          config.scorebound = changes.scorebound.newValue;
         }
       });
     } catch (e) {
@@ -419,7 +427,7 @@
   function maybeShowCleanserOverlay() {
     if (cleanserShown) return;
     const { count, avg } = computeStats();
-    if (count > 5 && avg > 1.5) {
+    if (count > config.numberbound && avg > config.scorebound) {
       try { openCleanserOverlay(); } catch (e) {}
     }
   }
@@ -460,7 +468,7 @@
     document.documentElement.appendChild(host);
     cleanserHost = host;
 
-    if (audioFiles.length == 0) for (let i = 1; i <= 15; i++) {
+    if (audioFiles.length == 0) for (let i = 1; i <= 2; i++) {
       this.audioFiles.push(`audio/music${i}.mp3`);
     }
     stopAudio()
@@ -488,8 +496,8 @@
     wrap.className = 'overlay';
     wrap.innerHTML = `
       <div class="card">
-        <div class="title">Woah, Slow Down!</div>
-        <div class="msg">Your feed is getting heavy. Consider a break or cleanse highly inflammatory items.</div>
+        <div class="title">Woah, Slow Down! It's time for a sanity check!</div>
+        <div class="msg">Consider a break or cleanse highly inflammatory items from your feed. Get some coffee, talk to a friend, or go outside!</div>
         <div class="row">
           <button class="btn break">OK - Take 3 Min Break</button>
           <button class="btn cleanse">Yes - Cleanse Feed</button>
@@ -534,7 +542,7 @@
         if (Array.isArray(targets) && targets.length && window.discourager && typeof window.discourager.markTweetsNotInterested === 'function') {
           await window.discourager.markTweetsNotInterested(targets);
         }
-        try { btnCleanse.textContent = '✅ Feed Cleansed!'; } catch(_){ }
+        try { btnCleanse.textContent = 'Feed Cleansed!'; } catch(_){ }
         setTimeout(() => { try { cleanserHost?.remove(); } catch(_){ } }, 1200);
       } catch (e) {
         try { btnCleanse.textContent = 'Error'; } catch(_){ }
