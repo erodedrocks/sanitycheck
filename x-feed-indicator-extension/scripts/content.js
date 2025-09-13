@@ -49,9 +49,17 @@
         if (handleMatch) handle = '@' + handleMatch[1];
       }
       
-      // Extract verified status
+      // Extract verification status and account type
       const verifiedElement = article.querySelector('[data-testid="icon-verified"]');
       const isVerified = !!verifiedElement;
+      
+      // Check for government/politics tag
+      const governmentElement = article.querySelector('[data-testid="icon-government"], [data-testid="icon-politics"], [aria-label*="Government"], [aria-label*="Politics"]');
+      const isGovernment = !!governmentElement;
+      
+      // Check for company/brand tag
+      const companyElement = article.querySelector('[data-testid="icon-business"], [data-testid="icon-brand"], [aria-label*="Business"], [aria-label*="Brand"], [aria-label*="Company"]');
+      const isCompany = !!companyElement;
       
       // Extract engagement metrics
       let likeCount = 0;
@@ -89,6 +97,8 @@
           text: tweetText,
           timestamp: timestamp || '',
           isVerified: isVerified || null,
+          isGovernment: isGovernment || null,
+          isCompany: isCompany || null,
           likeCount: likeCount || null,
           commentCount: commentCount || null,
           retweetCount: retweetCount || null,
