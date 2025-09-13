@@ -6,6 +6,11 @@
       this.totalTime = 180; // seconds
       this.timeLeft = this.totalTime;
       this.timer = null;
+      this.currentAudio = null;
+      this.audioFiles = [];
+      for (let i = 1; i <= 15; i++) {
+        this.audioFiles.push(`audio/jazz${i}.mp3`);
+      }
       this.zenMessages = [
         'Step away from the screen and breathe...',
         'Feel the sunlight on your skin...',
@@ -22,11 +27,33 @@
       this.init();
     }
 
+    startRandomAudio() {
+      try {
+        const randomAudio = this.audioFiles[Math.floor(Math.random() * this.audioFiles.length)];
+        const audioUrl = chrome.runtime.getURL(`audio/${randomAudio}`);
+        this.currentAudio = new Audio(audioUrl);
+        this.currentAudio.volume = 0.4;
+        this.currentAudio.loop = true;
+        this.currentAudio.play().catch(e => console.log('Audio autoplay blocked:', e));
+      } catch (error) {
+        console.error('Failed to load audio:', error);
+      }
+    }
+    
+    stopAudio() {
+      if (this.currentAudio) {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+        this.currentAudio = null;
+      }
+    }
+
     init() {
       const breakBtn = document.getElementById('breakBtn');
       const cleanseBtn = document.getElementById('cleanseBtn');
       breakBtn?.addEventListener('click', () => this.startBreakTimer());
       cleanseBtn?.addEventListener('click', () => this.cleanseFeed());
+      this.startRandomAudio();
     }
 
     startBreakTimer() {
@@ -65,6 +92,7 @@
       if (this.progressTimer) clearInterval(this.progressTimer);
       const overlay = document.getElementById('popupOverlay');
       if (overlay) overlay.style.opacity = '0.9';
+      this.stopAudio();
       setTimeout(() => window.close(), 500);
     }
 
@@ -72,6 +100,7 @@
       const btn = document.getElementById('cleanseBtn');
       if (btn) { btn.textContent = 'Cleansing...'; btn.setAttribute('disabled', 'true'); }
       try {
+        this.stopAudio();
         const tab = await this.getActiveTwitterTab();
         if (!tab?.id) throw new Error('Open a Twitter/X tab to cleanse.');
 
