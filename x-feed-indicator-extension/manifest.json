@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "X/Twitter Feed Indicator",
+  "name": "SanityCheck",
   "version": "0.1.0",
   "description": "Scrapes tweets from the home feed and adds a visual indicator to each processed tweet.",
   "action": {
-    "default_title": "X Feed Indicator"
+    "default_title": "SanityCheck"
   },
   "permissions": [
     "storage",

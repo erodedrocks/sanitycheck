@@ -59,10 +59,10 @@ article.xfi-article-fallback > .xfi-ideology {
 
 /* Ideology colors: left = blue, neutral = gray, right = red */
 .xfi-ideology.ideology--10  { background: rgba(100, 100, 100, 0.12); color: rgb(100, 100, 100); }
-.xfi-ideology.ideology--2 { background: rgba(0, 110, 220, 0.15); color: rgb(0, 90, 200); }
-.xfi-ideology.ideology--1 { background: rgba(60, 140, 240, 0.15); color: rgb(110, 160, 222); }
+.xfi-ideology.ideology--2 { background: rgba(0, 110, 220, 0.15); color: rgb(87, 163, 255); }
+.xfi-ideology.ideology--1 { background: rgba(60, 140, 240, 0.15); color: rgb(127, 185, 255); }
 .xfi-ideology.ideology-0  { background: rgba(100, 100, 100, 0.12); color: rgb(100, 100, 100); }
-.xfi-ideology.ideology-1  { background: rgba(240, 120, 0, 0.15); color: rgb(210, 116, 34); }
-.xfi-ideology.ideology-2  { background: rgba(230, 0, 0, 0.15); color: rgb(190, 0, 0); }
+.xfi-ideology.ideology-1  { background: rgba(240, 120, 0, 0.15); color: rgb(255, 188, 129); }
+.xfi-ideology.ideology-2  { background: rgba(230, 0, 0, 0.15); color: rgb(255, 136, 136); }
 .xfi-ideology.pending { background: rgba(100,100,100,0.12); color: rgb(100,100,100); }
 .xfi-ideology.error { background: rgba(140, 0, 0, 0.12); color: rgb(160, 0, 0); }
