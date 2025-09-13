@@ -99,7 +99,7 @@ function parseComposite(s) {
 
 function defaultPrompt() {
   return `You are a strict classifier.
-Rate the tweet on two dimensions and output both as numbers:
+Rate the message on two dimensions and output both as numbers:
 
 Dimension A (Inflammatory, 1-5):
 - 1: Not inflammatory. Neutral or polite.
@@ -120,5 +120,5 @@ Rules:
 - A = 1 to 5 (inflammatory). B = -2 to 2 (ideology). No extra words.
 - Do not include labels, punctuation (other than the comma), or explanations.
 
-Now classify the tweet. REMEMBER: Output ONLY two numbers as "A,B" with no extra text.`;
+Now classify the message. REMEMBER: Output ONLY two numbers as "A,B" with no extra text.`;
 }

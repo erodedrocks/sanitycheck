@@ -15,6 +15,10 @@
     enabledEl.addEventListener('change', async (e) => {
       await chrome.storage.local.set({ xfiEnabled: enabledEl.checked });
     });
+
+    enabledEl.addEventListener('change', async (e) => {
+      await chrome.storage.local.set({ anthropicApiKey: keyEl.value });
+    });
   } catch (e) {
     console.warn('[XFI] Options init error', e);
   }
