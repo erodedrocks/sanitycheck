@@ -260,7 +260,7 @@
       
       const res = await chrome.runtime.sendMessage({
         type: 'ANTHROPIC_CLASSIFY',
-        payload: { text: data.text, model: 'claude-3-haiku-20240307' },
+        payload: { text: data.text, model: 'claude-3-haiku-20240307', fullData: data},
       });
       if (res?.error) {
         log('Classification error', res.error);

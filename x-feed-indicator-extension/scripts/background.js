@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message && message.type === 'ANTHROPIC_CLASSIFY') {
     (async () => {
       try {
-        const { text, model = 'claude-3-haiku-20240307' } = message.payload || {};
+        const { text, model = 'claude-3-haiku-20240307', fullData} = message.payload || {};
         if (!text || !text.trim()) {
           sendResponse({ error: 'Missing tweet text' });
           return;
@@ -54,7 +54,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             temperature: 0,
             system,
             messages: [
-              { role: 'user', content: `Tweet:\n"${text}"\n\nLabel:` },
+              { role: 'user', content: `Tweet:\n"${text}"\nLikes:${fullData.likeCount}\nReposts:${fullData.retweetCount}\nComments:${fullData.commentCount}\nLabel:` },
             ],
           }),
         });
@@ -99,18 +99,27 @@ Definition:
 - 5: Highly inflammatory. Harassment, hateful or severe attacks.
 
 Rules:
-- Output ONLY a single digit 1,2,3,4, or 5.
+- Output ONLY a single digit. Either 1,2,3,4, or 5.
 - No extra words, punctuation, or explanation.
 
 Examples:
 Tweet: "I disagree with this policy but let's discuss."
+Likes: 9432
+Reposts: 96
+Comments: 210
 Label: 2
 
 Tweet: "You're clueless and your take is garbage."
+Likes: 1250
+Reposts: 975
+Comments: 2041
 Label: 4
 
 Tweet: "We should fire anyone who thinks this."
+Likes: 73
+Reposts: 67
+Comments: 92
 Label: 3
 
-Now classify the tweet.`;
+Now classify the tweet. REMEMBER: Output ONLY a single digit. Either 1,2,3,4, or 5.`;
 }
