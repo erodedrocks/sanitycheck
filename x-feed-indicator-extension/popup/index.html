@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>XFI Prompt</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>XFI • Anthropic</h1>
+      <textarea id="prompt" placeholder="Enter your prompt..."></textarea>
+      <div class="row">
+        <label for="model">Model</label>
+        <select id="model">
+          <option value="claude-3-haiku-20240307">claude-3-haiku-20240307 (cheapest)</option>
+        </select>
+      </div>
+      <button id="send">Send</button>
+      <pre id="output" class="output" aria-live="polite"></pre>
+      <div class="hint">Set your API key in Options.</div>
+    </div>
+    <script src="index.js"></script>
+  </body>
+  </html>
+

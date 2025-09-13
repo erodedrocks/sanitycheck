@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "X/Twitter Feed Indicator",
+  "version": "0.1.0",
+  "description": "Scrapes tweets from the home feed and adds a visual indicator to each processed tweet.",
+  "action": {
+    "default_title": "X Feed Indicator",
+    "default_popup": "popup/index.html"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://twitter.com/*",
+    "https://*.twitter.com/*",
+    "https://x.com/*",
+    "https://*.x.com/*",
+    "https://api.anthropic.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://twitter.com/*",
+        "https://*.twitter.com/*",
+        "https://x.com/*",
+        "https://*.x.com/*"
+      ],
+      "js": ["scripts/content.js"],
+      "css": ["styles/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "scripts/background.js"
+  },
+  "options_page": "options/index.html"
+}
