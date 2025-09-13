@@ -468,7 +468,7 @@
     cleanserHost = host;
 
     if (audioFiles.length == 0) for (let i = 1; i <= 15; i++) {
-      this.audioFiles.push(`audio/jazz${i}.mp3`);
+      this.audioFiles.push(`audio/music${i}.mp3`);
     }
     stopAudio()
     startRandomAudio()
