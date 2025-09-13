@@ -1,4 +1,5 @@
-// Options page logic (MV3 CSP-safe)
+//Logic for the extension enabled/disabled and API key input
+
 (async function init() {
   try {
     const enabledEl = /** @type {HTMLInputElement} */ (document.getElementById('enabled'));
